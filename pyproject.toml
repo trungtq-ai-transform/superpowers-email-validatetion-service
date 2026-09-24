@@ -55,6 +55,7 @@ addopts = "-m 'not network and not integration'"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+extend-exclude = ["docs"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "ASYNC", "SIM"]
