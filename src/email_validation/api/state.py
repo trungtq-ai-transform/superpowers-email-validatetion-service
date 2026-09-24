@@ -50,7 +50,12 @@ def build_state(
     backend = dns_backend or DnspythonBackend(
         settings.dns_nameserver_list, timeout=settings.dns_timeout, lifetime=settings.dns_lifetime
     )
-    resolver = MxResolver(backend, cache=cache, max_concurrency=settings.dns_max_concurrency)
+    resolver = MxResolver(
+        backend,
+        cache=cache,
+        max_concurrency=settings.dns_max_concurrency,
+        lookup_timeout=settings.dns_lifetime,
+    )
     if registry is None:
         registry = DisposableRegistry.from_bundled(allowlist=settings.disposable_allowlist_list)
     validator = EmailValidator(settings.to_policy(), resolver=resolver, registry=registry)

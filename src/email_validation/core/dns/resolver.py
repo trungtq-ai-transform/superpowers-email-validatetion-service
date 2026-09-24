@@ -50,8 +50,10 @@ class MxResolver:
         *,
         cache: TieredCache | None = None,
         max_concurrency: int = 500,
+        lookup_timeout: float = 4.0,
     ) -> None:
         self._backend = backend
+        self._lookup_timeout = lookup_timeout
         self._cache = cache
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self._inflight: dict[str, asyncio.Task[MxLookupResult]] = {}
@@ -86,7 +88,12 @@ class MxResolver:
         start = time.perf_counter()
         try:
             async with self._semaphore:
-                result = await self._resolve_uncached(domain)
+                try:
+                    # Bounds MX + A/AAAA fallback together, not each query separately.
+                    async with asyncio.timeout(self._lookup_timeout):
+                        result = await self._resolve_uncached(domain)
+                except TimeoutError:
+                    result = MxLookupResult(MxOutcome.TEMP_FAIL)
         finally:
             DNS_LOOKUP_SECONDS.observe(time.perf_counter() - start)
         DNS_LOOKUPS_TOTAL.labels(outcome=result.outcome.value).inc()

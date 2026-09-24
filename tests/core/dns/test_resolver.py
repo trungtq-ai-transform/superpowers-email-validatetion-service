@@ -125,3 +125,37 @@ async def test_lookup_metric_incremented() -> None:
     await lookup({})
     after = REGISTRY.get_sample_value("dns_lookups_total", {"outcome": "nxdomain"})
     assert after == before + 1
+
+
+def _temp_fail_count() -> float:
+    return REGISTRY.get_sample_value("dns_lookups_total", {"outcome": "temp_fail"}) or 0.0
+
+
+async def test_slow_lookup_is_bounded_by_lookup_timeout() -> None:
+    backend = FakeDnsBackend({("example.com", "MX"): mx((10, "mx.example.com"))}, delay=0.5)
+    resolver = MxResolver(backend, lookup_timeout=0.05)
+    before = _temp_fail_count()
+    loop = asyncio.get_running_loop()
+    start = loop.time()
+    result = await resolver.lookup("example.com")
+    assert loop.time() - start < 0.4
+    assert result.outcome is MxOutcome.TEMP_FAIL
+    assert _temp_fail_count() == before + 1
+
+    backend.delay = 0.0  # resolver stays usable after a timeout
+    again = await resolver.lookup("example.com")
+    assert again.outcome is MxOutcome.OK
+    assert again.hosts == ("mx.example.com",)
+
+
+async def test_lookup_timeout_covers_mx_plus_fallback() -> None:
+    # Each query alone fits in the timeout; MX NoAnswer + A/AAAA fallback together do not.
+    backend = FakeDnsBackend(
+        {
+            ("example.com", "MX"): NoAnswerError,
+            ("example.com", "A"): addr("192.0.2.1"),
+        },
+        delay=0.06,
+    )
+    result = await MxResolver(backend, lookup_timeout=0.1).lookup("example.com")
+    assert result.outcome is MxOutcome.TEMP_FAIL

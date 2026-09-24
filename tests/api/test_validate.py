@@ -98,3 +98,16 @@ async def test_validate_with_broken_redis(settings: Settings, dns: FakeDnsBacken
         resp = await c.post("/v1/validate", json={"email": "a@example.com"})
     assert resp.status_code == 200
     assert resp.json()["status"] == "valid"
+
+
+async def test_dns_lifetime_bounds_whole_mx_lookup() -> None:
+    slow = FakeDnsBackend({}, delay=0.5)
+    settings = Settings(_env_file=None, auth_enabled=False, dns_lifetime=0.05)
+    app = create_app(settings, dns_backend=slow, redis_client=None)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as c:
+        resp = await c.post("/v1/validate", json={"email": "a@example.com"})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "unknown"
+    assert resp.json()["reasons"] == ["DNS_TEMPORARY_FAILURE"]
