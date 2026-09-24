@@ -60,8 +60,17 @@ do not reject the user). HTTP is 200 for every validation result.
 | `EV_SUBADDRESS_SEPARATOR` | `+` | Set empty to disable `+tag` stripping |
 | `EV_BATCH_MAX` | `1000` | Max emails per batch request |
 | `EV_BATCH_CONCURRENCY` | `100` | Concurrent validations within a batch request |
+| `EV_MAX_BODY_BYTES_VALIDATE` | `16384` | Max request body for `POST /v1/validate` (larger → 413) |
+| `EV_MAX_BODY_BYTES_BATCH` | `2097152` | Max request body for `POST /v1/validate/batch` (larger → 413) |
+| `EV_MAX_BODY_BYTES_DEFAULT` | `65536` | Max request body for every other path |
 | `EV_LOG_LEVEL` | `INFO` | Python logging level |
 | `EV_OTEL_ENABLED` | `false` | Needs `uv sync --extra otel`; uses `OTEL_EXPORTER_OTLP_ENDPOINT` |
+
+Request bodies are size-checked before authentication and parsing (by `Content-Length`
+and while streaming chunked bodies), so oversized requests get 413 without being buffered.
+Also set a matching body-size limit at the ingress / load balancer (e.g. nginx
+`client_max_body_size 2m`, or `nginx.ingress.kubernetes.io/proxy-body-size: "2m"`) so
+oversized requests are dropped before they reach the pods.
 
 ## Tests
 

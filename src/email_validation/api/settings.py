@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     batch_max: int = 1000
     batch_concurrency: int = 100
 
+    max_body_bytes_validate: int = 16_384
+    max_body_bytes_batch: int = 2_097_152
+    max_body_bytes_default: int = 65_536
+
     auth_enabled: bool = True
     api_key_hashes: str = ""  # comma-separated SHA-256 hex digests
     rate_limit_per_minute: int = 6000

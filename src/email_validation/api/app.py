@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator
 from fastapi import FastAPI
 from redis.asyncio import Redis
 
+from email_validation.api.limits import BodySizeLimitMiddleware
 from email_validation.api.observability import (
     RequestIdMiddleware,
     configure_logging,
@@ -54,6 +55,16 @@ def create_app(
     app = FastAPI(title="Email Validation Service", version="0.1.0", lifespan=lifespan)
     app.state.ev = state
     app.include_router(router)
+    # add_middleware inserts outermost: the last added runs first. RequestIdMiddleware
+    # stays outermost so 413s from BodySizeLimitMiddleware still carry X-Request-ID.
+    app.add_middleware(
+        BodySizeLimitMiddleware,
+        limits={
+            "/v1/validate": settings.max_body_bytes_validate,
+            "/v1/validate/batch": settings.max_body_bytes_batch,
+        },
+        default=settings.max_body_bytes_default,
+    )
     app.add_middleware(RequestIdMiddleware)
     if settings.otel_enabled:
         setup_otel(app)

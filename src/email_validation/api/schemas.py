@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -18,7 +18,8 @@ class ValidateRequest(BaseModel):
 
 
 class BatchRequest(BaseModel):
-    emails: list[str] = Field(max_length=100_000)  # hard ceiling; batch_max enforced in route (413)
+    # hard ceiling; batch_max enforced in route (413)
+    emails: list[Annotated[str, Field(max_length=1024)]] = Field(max_length=100_000)
     options: Options = Field(default_factory=Options)
 
 
