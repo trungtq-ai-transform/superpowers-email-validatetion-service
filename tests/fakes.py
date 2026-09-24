@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
+import redis.exceptions
+
 from email_validation.core.dns.backend import DnsAnswer, DnsError, NXDomainError
 
 Response = DnsAnswer | DnsError | type[DnsError]
@@ -42,3 +44,15 @@ class FakeDnsBackend:
             raise response
         finally:
             self.in_flight -= 1
+
+
+class BrokenRedis:
+    """Stands in for redis.asyncio.Redis when the server is unreachable."""
+
+    async def _fail(self, *args: object, **kwargs: object) -> None:
+        raise redis.exceptions.ConnectionError("redis is down")
+
+    get = set = ping = eval = evalsha = _fail
+
+    async def aclose(self) -> None:
+        return None

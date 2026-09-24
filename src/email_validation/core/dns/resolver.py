@@ -4,6 +4,7 @@ import asyncio
 import time
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from email_validation.core.dns.backend import (
     DnsAnswer,
@@ -14,6 +15,9 @@ from email_validation.core.dns.backend import (
     TemporaryDnsError,
 )
 from email_validation.core.metrics import DNS_LOOKUP_SECONDS, DNS_LOOKUPS_TOTAL
+
+if TYPE_CHECKING:
+    from email_validation.core.dns.cache import TieredCache
 
 
 class MxOutcome(StrEnum):
@@ -36,13 +40,47 @@ def normalize_domain(domain: str) -> str:
     return domain.lower().rstrip(".")
 
 
+CACHE_KEY_PREFIX = "mx:v1:"  # must equal email_validation.core.dns.cache.KEY_PREFIX
+
+
 class MxResolver:
-    def __init__(self, backend: DnsBackend, *, max_concurrency: int = 500) -> None:
+    def __init__(
+        self,
+        backend: DnsBackend,
+        *,
+        cache: TieredCache | None = None,
+        max_concurrency: int = 500,
+    ) -> None:
         self._backend = backend
+        self._cache = cache
         self._semaphore = asyncio.Semaphore(max_concurrency)
+        self._inflight: dict[str, asyncio.Task[MxLookupResult]] = {}
 
     async def lookup(self, ascii_domain: str) -> MxLookupResult:
-        return await self._resolve(normalize_domain(ascii_domain))
+        domain = normalize_domain(ascii_domain)
+        key = CACHE_KEY_PREFIX + domain
+        if self._cache is not None:
+            cached = await self._cache.get(key)
+            if cached is not None:
+                return cached
+        task = self._inflight.get(key)
+        if task is None:
+            # Run in a separate task so one caller's cancellation never cancels the
+            # shared lookup that other callers (single-flight followers) await.
+            task = asyncio.create_task(self._resolve_and_store(key, domain))
+            self._inflight[key] = task
+
+            def _forget(_task: asyncio.Task[MxLookupResult], k: str = key) -> None:
+                self._inflight.pop(k, None)
+
+            task.add_done_callback(_forget)
+        return await asyncio.shield(task)
+
+    async def _resolve_and_store(self, key: str, domain: str) -> MxLookupResult:
+        result = await self._resolve(domain)
+        if self._cache is not None:
+            await self._cache.set(key, result)
+        return result
 
     async def _resolve(self, domain: str) -> MxLookupResult:
         start = time.perf_counter()
