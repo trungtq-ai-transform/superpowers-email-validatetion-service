@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: email-validation
+  labels: {app: email-validation}
+spec:
+  replicas: 3
+  selector:
+    matchLabels: {app: email-validation}
+  template:
+    metadata:
+      labels: {app: email-validation}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: app
+          image: email-validation:0.1.0
+          ports: [{containerPort: 8000, name: http}]
+          envFrom:
+            - secretRef: {name: ev-secrets}
+          env:
+            - {name: EV_LOG_LEVEL, value: INFO}
+            - {name: EV_DISPOSABLE_URL, value: "https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/main/disposable_email_blocklist.conf"}
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
