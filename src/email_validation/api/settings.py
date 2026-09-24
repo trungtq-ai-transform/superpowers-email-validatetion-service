@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 6000
 
     log_level: str = "INFO"
+    otel_enabled: bool = False
 
     @property
     def dns_nameserver_list(self) -> list[str]:
