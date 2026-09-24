@@ -92,7 +92,9 @@ async def test_batch_too_large_is_413(client: httpx.AsyncClient) -> None:
 async def test_validate_with_broken_redis(settings: Settings, dns: FakeDnsBackend) -> None:
     app = create_app(settings, dns_backend=dns, redis_client=BrokenRedis())  # type: ignore[arg-type]
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://test", headers={"X-API-Key": "test-key"}
+    ) as c:
         resp = await c.post("/v1/validate", json={"email": "a@example.com"})
     assert resp.status_code == 200
     assert resp.json()["status"] == "valid"

@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     batch_max: int = 1000
     batch_concurrency: int = 100
 
+    auth_enabled: bool = True
+    api_key_hashes: str = ""  # comma-separated SHA-256 hex digests
+    rate_limit_per_minute: int = 6000
+
     log_level: str = "INFO"
 
     @property
@@ -46,6 +50,10 @@ class Settings(BaseSettings):
     @property
     def disposable_allowlist_list(self) -> list[str]:
         return _csv(self.disposable_allowlist)
+
+    @property
+    def api_key_hash_list(self) -> list[str]:
+        return _csv(self.api_key_hashes)
 
     def to_policy(self) -> ValidationPolicy:
         return ValidationPolicy(

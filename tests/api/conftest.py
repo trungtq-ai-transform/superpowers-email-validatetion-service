@@ -6,8 +6,11 @@ import pytest
 from fakeredis import FakeAsyncRedis
 
 from email_validation.api.app import create_app
+from email_validation.api.security import hash_api_key
 from email_validation.api.settings import Settings
 from tests.fakes import FakeDnsBackend, mx
+
+TEST_KEY = "test-key"
 
 
 @pytest.fixture
@@ -24,7 +27,7 @@ def dns() -> FakeDnsBackend:
 
 @pytest.fixture
 def settings() -> Settings:
-    return Settings(_env_file=None, redis_url=None)
+    return Settings(_env_file=None, redis_url=None, api_key_hashes=hash_api_key(TEST_KEY))
 
 
 @pytest.fixture
@@ -38,5 +41,7 @@ async def client(
 ) -> AsyncIterator[httpx.AsyncClient]:
     app = create_app(settings, dns_backend=dns, redis_client=redis)
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://test", headers={"X-API-Key": TEST_KEY}
+    ) as c:
         yield c

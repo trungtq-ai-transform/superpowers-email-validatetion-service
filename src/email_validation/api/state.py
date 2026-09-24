@@ -6,6 +6,7 @@ from typing import cast
 from fastapi import Request
 from redis.asyncio import Redis
 
+from email_validation.api.security import ApiKeyAuth, RateLimiter
 from email_validation.api.settings import Settings
 from email_validation.core import (
     DisposableRegistry,
@@ -27,6 +28,8 @@ class AppState:
     registry: DisposableRegistry
     redis: Redis | None
     owns_redis: bool
+    auth: ApiKeyAuth
+    rate_limiter: RateLimiter
 
 
 def build_state(
@@ -51,7 +54,9 @@ def build_state(
     if registry is None:
         registry = DisposableRegistry.from_bundled(allowlist=settings.disposable_allowlist_list)
     validator = EmailValidator(settings.to_policy(), resolver=resolver, registry=registry)
-    return AppState(settings, validator, resolver, registry, redis, owns_redis)
+    auth = ApiKeyAuth(settings.api_key_hash_list, enabled=settings.auth_enabled)
+    rate_limiter = RateLimiter(redis, settings.rate_limit_per_minute)
+    return AppState(settings, validator, resolver, registry, redis, owns_redis, auth, rate_limiter)
 
 
 def get_state(request: Request) -> AppState:
