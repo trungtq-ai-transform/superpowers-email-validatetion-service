@@ -1,3 +1,4 @@
+import pytest
 from fakeredis import FakeAsyncRedis
 
 from email_validation.api.security import ApiKeyAuth, RateLimiter, hash_api_key
@@ -74,3 +75,26 @@ def test_rate_limiter_capacity_and_enabled() -> None:
     assert limiter.enabled is True
     assert RateLimiter(None, per_minute=7).enabled is False
     assert RateLimiter(FakeAsyncRedis(), per_minute=0).enabled is False
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "not-hex",
+        "zz" * 32,  # right length, not hex
+        "a" * 63,
+        "a" * 65,
+        "é" * 64,  # non-ASCII
+        "٣" * 64,  # non-ASCII digit
+    ],
+)
+def test_auth_rejects_malformed_hash_without_echoing_it(bad: str) -> None:
+    good = hash_api_key("k1")
+    with pytest.raises(ValueError, match="index 1") as info:
+        ApiKeyAuth([good, bad])
+    assert bad not in str(info.value)
+
+
+def test_auth_normalizes_hash_case_and_whitespace() -> None:
+    auth = ApiKeyAuth([f"  {hash_api_key('k1').upper()} "])
+    assert auth.identify("k1") == hash_api_key("k1")[:12]

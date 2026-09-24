@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import logging
 import math
+import re
 import sys
 import time
 from collections.abc import Callable, Iterable
@@ -22,9 +23,23 @@ def hash_api_key(key: str) -> str:
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
+_SHA256_HEX = re.compile(r"[0-9a-f]{64}")
+
+
 class ApiKeyAuth:
     def __init__(self, hashes: Iterable[str], enabled: bool = True) -> None:
-        self._hashes = tuple(h.strip().lower() for h in hashes if h.strip())
+        normalized: list[str] = []
+        for index, raw in enumerate(hashes):
+            value = raw.strip().lower()
+            if not value:
+                continue
+            if not _SHA256_HEX.fullmatch(value):
+                # Never echo the value: it may be a raw key pasted by mistake.
+                raise ValueError(
+                    f"API key hash at index {index} is not a 64-character hex SHA-256 digest"
+                )
+            normalized.append(value)
+        self._hashes = tuple(normalized)
         self._enabled = enabled
 
     def identify(self, presented: str | None) -> str | None:

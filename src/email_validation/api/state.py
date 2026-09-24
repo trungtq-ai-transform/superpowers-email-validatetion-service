@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import cast
 
@@ -18,6 +19,8 @@ from email_validation.core import (
     TieredCache,
 )
 from email_validation.core.dns.backend import DnsBackend
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -61,6 +64,16 @@ def build_state(
     validator = EmailValidator(settings.to_policy(), resolver=resolver, registry=registry)
     auth = ApiKeyAuth(settings.api_key_hash_list, enabled=settings.auth_enabled)
     rate_limiter = RateLimiter(redis, settings.rate_limit_per_minute)
+    if settings.auth_enabled and not settings.api_key_hash_list:
+        logger.warning(
+            "auth is enabled but no API key hashes are configured (EV_API_KEY_HASHES): "
+            "every authenticated request will get 401"
+        )
+    if redis is None and settings.rate_limit_per_minute > 0:
+        logger.warning(
+            "rate limiting is disabled: EV_RATE_LIMIT_PER_MINUTE is set but no Redis "
+            "is configured (EV_REDIS_URL)"
+        )
     return AppState(settings, validator, resolver, registry, redis, owns_redis, auth, rate_limiter)
 
 
