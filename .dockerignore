@@ -6,3 +6,4 @@
 tests
 perf
 docs
+.env
