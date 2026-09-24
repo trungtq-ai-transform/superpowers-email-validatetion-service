@@ -66,3 +66,11 @@ async def test_rate_limiter_without_redis() -> None:
     limiter = RateLimiter(None, per_minute=1)
     for _ in range(5):
         assert (await limiter.check("k")).allowed
+
+
+def test_rate_limiter_capacity_and_enabled() -> None:
+    limiter = RateLimiter(FakeAsyncRedis(), per_minute=7)
+    assert limiter.capacity == 7
+    assert limiter.enabled is True
+    assert RateLimiter(None, per_minute=7).enabled is False
+    assert RateLimiter(FakeAsyncRedis(), per_minute=0).enabled is False

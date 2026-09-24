@@ -53,3 +53,31 @@ async def test_batch_cost_counts_emails(dns: FakeDnsBackend, redis: Any) -> None
         denied = await c.post("/v1/validate/batch", json={"emails": ["a@example.com"] * 2})
     assert ok.status_code == 200
     assert denied.status_code == 429
+
+
+async def test_batch_larger_than_capacity_is_413_and_consumes_no_tokens(
+    dns: FakeDnsBackend, redis: Any
+) -> None:
+    settings = Settings(_env_file=None, api_key_hashes=hash_api_key("k"), rate_limit_per_minute=5)
+    app = create_app(settings, dns_backend=dns, redis_client=redis)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://test", headers={"X-API-Key": "k"}
+    ) as c:
+        too_big = await c.post("/v1/validate/batch", json={"emails": ["a@example.com"] * 6})
+        fits = await c.post("/v1/validate/batch", json={"emails": ["a@example.com"] * 5})
+    assert too_big.status_code == 413
+    assert too_big.json() == {"detail": "batch of 6 exceeds rate limit capacity of 5 per minute"}
+    assert "Retry-After" not in too_big.headers
+    assert fits.status_code == 200
+
+
+async def test_batch_capacity_check_skipped_without_redis(dns: FakeDnsBackend) -> None:
+    settings = Settings(_env_file=None, api_key_hashes=hash_api_key("k"), rate_limit_per_minute=5)
+    app = create_app(settings, dns_backend=dns, redis_client=None)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://test", headers={"X-API-Key": "k"}
+    ) as c:
+        resp = await c.post("/v1/validate/batch", json={"emails": ["a@example.com"] * 6})
+    assert resp.status_code == 200

@@ -46,7 +46,7 @@ do not reject the user). HTTP is 200 for every validation result.
 | `EV_REDIS_URL` | unset | Shared L2 cache + rate limiting; service runs without it |
 | `EV_API_KEY_HASHES` | empty | Comma-separated SHA-256 of API keys (auth on by default) |
 | `EV_AUTH_ENABLED` | `true` | |
-| `EV_RATE_LIMIT_PER_MINUTE` | `6000` | Per key; batch counts each email |
+| `EV_RATE_LIMIT_PER_MINUTE` | `6000` | Per key; batch counts each email (a batch larger than this → 413) |
 | `EV_DNS_NAMESERVERS` | system | Comma-separated |
 | `EV_DNS_TIMEOUT` / `EV_DNS_LIFETIME` | `2.0` / `4.0` | Seconds |
 | `EV_DNS_MAX_CONCURRENCY` | `500` | Max concurrent DNS lookups |

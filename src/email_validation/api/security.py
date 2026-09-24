@@ -85,8 +85,17 @@ class RateLimiter:
         self._clock = clock
         self._op_timeout = op_timeout
 
+    @property
+    def capacity(self) -> int:
+        """Bucket size: the most tokens a single request can ever be granted."""
+        return self._capacity
+
+    @property
+    def enabled(self) -> bool:
+        return self._redis is not None and self._capacity > 0
+
     async def check(self, key_id: str, cost: int = 1) -> RateDecision:
-        if self._redis is None or self._capacity <= 0:
+        if self._redis is None or not self.enabled:
             return RateDecision(True)
         now_ms = int(self._clock() * 1000)
         try:

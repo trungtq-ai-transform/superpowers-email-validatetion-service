@@ -77,6 +77,14 @@ async def validate_batch(
     state = get_state(request)
     if len(body.emails) > state.settings.batch_max:
         raise HTTPException(413, f"batch exceeds {state.settings.batch_max} emails")
+    limiter = state.rate_limiter
+    if limiter.enabled and len(body.emails) > limiter.capacity:
+        # Can never fit in the bucket: 429 + Retry-After would make clients retry forever.
+        raise HTTPException(
+            413,
+            f"batch of {len(body.emails)} exceeds rate limit capacity"
+            f" of {limiter.capacity} per minute",
+        )
     if body.emails:
         await _enforce_rate_limit(state, key_id, len(body.emails))
     policy = state.validator.policy.with_overrides(**body.options.model_dump())
