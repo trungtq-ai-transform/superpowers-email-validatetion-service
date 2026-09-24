@@ -81,3 +81,8 @@ uv run pytest -m network      # real DNS
 uv run ruff check . && uv run mypy
 uv run locust -f perf/locustfile.py --host http://localhost:8000
 ```
+
+Without Docker the integration tests are skipped locally. CI must run
+`EV_REQUIRE_INTEGRATION=1 uv run pytest -m integration` on a runner with Docker: with
+`EV_REQUIRE_INTEGRATION=1` (or a truthy `CI` env var) a missing Docker daemon fails the run
+instead of skipping it.
