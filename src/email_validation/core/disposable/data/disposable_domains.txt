@@ -1,0 +1,17 @@
+# Bundled starter list of disposable email domains (one per line, A-label form).
+# Production deployments should set EV_DISPOSABLE_URL to a maintained list, e.g.
+# https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/main/disposable_email_blocklist.conf
+10minutemail.com
+dispostable.com
+fakeinbox.com
+getnada.com
+guerrillamail.com
+guerrillamail.net
+mailinator.com
+maildrop.cc
+mintemail.com
+sharklasers.com
+temp-mail.org
+throwawaymail.com
+trashmail.com
+yopmail.com
