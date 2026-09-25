@@ -1,5 +1,7 @@
 # Email Validation Service
 
+[![CI](https://github.com/trungtq-ai-transform/superpowers-email-validatetion-service/actions/workflows/ci.yml/badge.svg)](https://github.com/trungtq-ai-transform/superpowers-email-validatetion-service/actions/workflows/ci.yml)
+
 Async Python library + REST API validating email addresses: RFC 5322/5321/6531 syntax
 (incl. `user+tag`), IDN (IDNA2008), DNS MX (Null MX, A/AAAA fallback), disposable domains.
 Design: `docs/superpowers/specs/2026-09-24-email-validation-service-design.md`.
